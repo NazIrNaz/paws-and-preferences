@@ -2,8 +2,6 @@ Paws & Preferences 🐾
 
 Swipe to like or dislike cats — mobile-first, zero-build web app powered by CATAAS
 
-Here’s a clean, copy-paste README.md for your repo 👇
-
 Paws & Preferences 🐾
 
 Swipe to like or dislike cats — mobile-first, zero-build web app powered by CATAAS
