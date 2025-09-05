@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paws & Preferences 🐾</title>
+  <meta name="description" content="Swipe to like or dislike cats. Built for smooth mobile UX. Images from CATAAS." />
+  <script type="module" crossorigin src="/paws-and-preferences/assets/main-B5_5WV01.js"></script>
+  <link rel="stylesheet" crossorigin href="/paws-and-preferences/assets/main-BwPXuDZQ.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <header>
+      <div class="logo">
+        <div class="cat" aria-hidden="true">🐾</div>
+        <div>
+          <div style="font-weight:700; letter-spacing:.2px">Paws & Preferences</div>
+          <div class="badge">Swipe cats you like</div>
+        </div>
+      </div>
+      <div class="pill" id="counter"><span>0</span>/<span id="total">0</span></div>
+    </header>
+
+    <section id="stage">
+      <div class="loading" id="loading">
+        <div>
+          <div class="spinner"></div>
+          <div>Fetching adorable cats…</div>
+        </div>
+      </div>
+      <div class="error" id="error" style="display:none">
+        <div>
+          <p>Couldn't fetch cats from CATAAS right now.</p>
+          <button class="btn" id="retry">Retry</button>
+        </div>
+      </div>
+      <div class="deck" id="deck" style="display:none"></div>
+      <div class="hint" id="hint">Swipe ← / →</div>
+      <div class="empty" id="done" style="display:none">
+        <div class="summary" id="summary"></div>
+      </div>
+    </section>
+
+    <div class="controls" aria-label="Swipe controls">
+      <button class="btn nope" id="nopeBtn" title="Dislike" aria-label="Dislike">✖</button>
+      <button class="btn like" id="likeBtn" title="Like" aria-label="Like">❤</button>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+  </main>
+
+</body>
+</html>
