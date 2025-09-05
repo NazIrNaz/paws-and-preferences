@@ -2,10 +2,6 @@ Paws & Preferences 🐾
 
 Swipe to like or dislike cats — mobile-first, zero-build web app powered by CATAAS
 
-Paws & Preferences 🐾
-
-Swipe to like or dislike cats — mobile-first, zero-build web app powered by CATAAS
-
 Features
 
 Tinder-style swipes: right = like, left = nope (buttons + ⇦/⇨ keys too)
