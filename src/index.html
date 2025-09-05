@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paws & Preferences 🐾</title>
+  <meta name="description" content="Swipe to like or dislike cats. Built for smooth mobile UX. Images from CATAAS." />
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <header>
+      <div class="logo">
+        <div class="cat" aria-hidden="true">🐾</div>
+        <div>
+          <div style="font-weight:700; letter-spacing:.2px">Paws & Preferences</div>
+          <div class="badge">Swipe cats you like</div>
+        </div>
+      </div>
+      <div class="pill" id="counter"><span>0</span>/<span id="total">0</span></div>
+    </header>
+
+    <section id="stage">
+      <div class="loading" id="loading">
+        <div>
+          <div class="spinner"></div>
+          <div>Fetching adorable cats…</div>
+        </div>
+      </div>
+      <div class="error" id="error" style="display:none">
+        <div>
+          <p>Couldn't fetch cats from CATAAS right now.</p>
+          <button class="btn" id="retry">Retry</button>
+        </div>
+      </div>
+      <div class="deck" id="deck" style="display:none"></div>
+      <div class="hint" id="hint">Swipe ← / →</div>
+      <div class="empty" id="done" style="display:none">
+        <div class="summary" id="summary"></div>
+      </div>
+    </section>
+
+    <div class="controls" aria-label="Swipe controls">
+      <button class="btn nope" id="nopeBtn" title="Dislike" aria-label="Dislike">✖</button>
+      <button class="btn like" id="likeBtn" title="Like" aria-label="Like">❤</button>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+  </main>
+
+  <script type="module">
+    // Configuration
+    const CAT_COUNT = 20;
+    const API_BASE = 'https://cataas.com/cat';
+    
+    // State
+    let currentIndex = 0;
+    let cards = [];
+    let likedCards = [];
+    let dislikedCards = [];
+    let startX, startY, moveX, moveY;
+    let isDragging = false;
+    let currentCard = null;
+    
+    // DOM Elements
+    const loadingEl = document.getElementById('loading');
+    const deckEl = document.getElementById('deck');
+    const counterEl = document.getElementById('counter');
+    const totalEl = document.getElementById('total');
+    const likeBtn = document.getElementById('likeBtn');
+    const nopeBtn = document.getElementById('nopeBtn');
+    
+    // Initialize the app
+    async function init() {
+      try {
+        showLoading(true);
+        
+        // Generate cat URLs with unique timestamps
+        const now = Date.now();
+        cards = Array.from({ length: CAT_COUNT }, (_, i) => ({
+          id: `cat-${now}-${i}`,
+          url: `${API_BASE}?t=${now}${i}`
+        }));
+        
+        if (totalEl) totalEl.textContent = CAT_COUNT;
+        
+        // Load first card
+        await loadNextCard();
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        showError();
+      } finally {
+        showLoading(false);
+      }
+    }
+    
+    // Load the next card
+    async function loadNextCard() {
+      if (currentIndex >= cards.length) {
+        showSummary();
+        return;
+      }
+      
+      const card = cards[currentIndex];
+      currentCard = createCardElement(card);
+      
+      if (deckEl) {
+        deckEl.innerHTML = '';
+        deckEl.appendChild(currentCard);
+      }
+      
+      if (counterEl) counterEl.textContent = currentIndex + 1;
+      
+      // Preload next image
+      if (currentIndex < cards.length - 1) {
+        const nextCard = cards[currentIndex + 1];
+        const img = new Image();
+        img.src = nextCard.url;
+      }
+    }
+    
+    // Create a card element
+    function createCardElement(card) {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.style.position = 'absolute';
+      cardEl.style.width = '100%';
+      cardEl.style.height = '100%';
+      cardEl.style.transition = 'transform 0.3s ease';
+      
+      cardEl.innerHTML = `
+        <div class="topbar"></div>
+        <img src="${card.url}" alt="A cute cat" style="width: 100%; height: 100%; object-fit: cover;">
+        <div class="footfade"></div>
+        <div class="label like" style="opacity: 0; transform: rotate(-8deg);">LIKE</div>
+        <div class="label nope" style="opacity: 0; transform: rotate(8deg);">NOPE</div>
+      `;
+      
+      return cardEl;
+    }
+    
+    // Set up event listeners
+    function setupEventListeners() {
+      // Touch events
+      if (deckEl) {
+        deckEl.addEventListener('touchstart', handleTouchStart, { passive: false });
+        deckEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+        deckEl.addEventListener('touchend', handleTouchEnd);
+      }
+      
+      // Mouse events
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      // Button clicks
+      if (likeBtn) likeBtn.addEventListener('click', () => handleSwipe('right'));
+      if (nopeBtn) nopeBtn.addEventListener('click', () => handleSwipe('left'));
+      
+      // Keyboard controls
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') handleSwipe('right');
+        if (e.key === 'ArrowLeft') handleSwipe('left');
+      });
+    }
+    
+    // Touch event handlers
+    function handleTouchStart(e) {
+      if (!currentCard) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      isDragging = true;
+      currentCard.style.transition = 'none';
+    }
+    
+    function handleTouchMove(e) {
+      if (!isDragging || !currentCard) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      moveX = touch.clientX - startX;
+      moveY = touch.clientY - startY;
+      updateCardPosition(moveX, moveY);
+    }
+    
+    function handleTouchEnd() {
+      if (!isDragging || !currentCard) return;
+      isDragging = false;
+      
+      // Check if swipe distance is enough
+      if (Math.abs(moveX) > 100) {
+        const direction = moveX > 0 ? 'right' : 'left';
+        handleSwipe(direction);
+      } else {
+        // Return to original position
+        currentCard.style.transition = 'transform 0.3s ease';
+        currentCard.style.transform = 'translate(0, 0) rotate(0deg)';
+        updateLabelOpacity(0, 0);
+      }
+    }
+    
+    // Mouse event handlers
+    function handleMouseDown(e) {
+      if (!currentCard || e.button !== 0) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      isDragging = true;
+      if (currentCard) {
+        currentCard.style.transition = 'none';
+      }
+    }
+    
+    function handleMouseMove(e) {
+      if (!isDragging || !currentCard) return;
+      moveX = e.clientX - startX;
+      moveY = e.clientY - startY;
+      updateCardPosition(moveX, moveY);
+    }
+    
+    function handleMouseUp() {
+      if (!isDragging || !currentCard) return;
+      isDragging = false;
+      
+      // Check if swipe distance is enough
+      if (Math.abs(moveX) > 100) {
+        const direction = moveX > 0 ? 'right' : 'left';
+        handleSwipe(direction);
+      } else {
+        // Return to original position
+        currentCard.style.transition = 'transform 0.3s ease';
+        currentCard.style.transform = 'translate(0, 0) rotate(0deg)';
+        updateLabelOpacity(0, 0);
+      }
+    }
+    
+    // Update card position during drag
+    function updateCardPosition(x, y) {
+      if (!currentCard) return;
+      
+      const rotation = x * 0.1;
+      currentCard.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+      
+      // Update label opacity based on direction
+      if (x > 0) {
+        updateLabelOpacity(Math.min(x / 100, 1), 0);
+      } else {
+        updateLabelOpacity(0, Math.min(Math.abs(x) / 100, 1));
+      }
+    }
+    
+    // Update like/nope label opacity
+    function updateLabelOpacity(likeOpacity, nopeOpacity) {
+      if (!currentCard) return;
+      const likeLabel = currentCard.querySelector('.like');
+      const nopeLabel = currentCard.querySelector('.nope');
+      if (likeLabel) likeLabel.style.opacity = likeOpacity;
+      if (nopeLabel) nopeLabel.style.opacity = nopeOpacity;
+    }
+    
+    // Handle swipe action
+    async function handleSwipe(direction) {
+      if (!currentCard) return;
+      
+      // Track like/dislike
+      const currentCat = cards[currentIndex];
+      if (direction === 'right') {
+        likedCards.push(currentCat);
+      } else {
+        dislikedCards.push(currentCat);
+      }
+      
+      // Animate card off screen
+      const x = direction === 'right' ? window.innerWidth : -window.innerWidth;
+      currentCard.style.transition = 'transform 0.5s ease';
+      currentCard.style.transform = `translate(${x}px, 0) rotate(${direction === 'right' ? 30 : -30}deg)`;
+      
+      // Move to next card
+      currentIndex++;
+      
+      // Check if we've reached the end
+      if (currentIndex >= cards.length) {
+        // Slight delay before showing summary to allow card to animate out
+        setTimeout(() => {
+          showSummary();
+        }, 500);
+      } else {
+        // Load next card
+        setTimeout(() => {
+          loadNextCard();
+        }, 300);
+      }
+    }
+    
+    // Show loading state
+    function showLoading(show) {
+      if (loadingEl) loadingEl.style.display = show ? 'flex' : 'none';
+      if (deckEl) deckEl.style.display = show ? 'none' : 'block';
+    }
+    
+    // Show error state
+    function showError() {
+      const errorEl = document.getElementById('error');
+      if (errorEl) errorEl.style.display = 'flex';
+    }
+    
+    // Show summary when all cards are swiped
+    function showSummary() {
+      const likedCats = [...likedCards];
+      
+      // Create main container
+      const container = document.createElement('div');
+      container.className = 'summary-container';
+      
+      // Create scrollable content area
+      const scrollContent = document.createElement('div');
+      scrollContent.className = 'summary-content';
+      
+      // Header section
+      const header = document.createElement('div');
+      header.className = 'summary-header';
+      
+      const title = document.createElement('h1');
+      title.className = 'summary-title';
+      const titleText = document.createElement('span');
+      titleText.className = 'title-text';
+      titleText.textContent = 'All done!';
+      const titleEmoji = document.createElement('span');
+      titleEmoji.className = 'title-emoji';
+      titleEmoji.textContent = '🐾';
+      title.appendChild(titleText);
+      title.appendChild(document.createTextNode(' '));
+      title.appendChild(titleEmoji);
+      
+      const summaryText = document.createElement('p');
+      summaryText.className = 'summary-text';
+      summaryText.textContent = `You liked ${likedCats.length} and passed on ${dislikedCards.length} out of ${cards.length} cats!`;
+      
+      header.appendChild(title);
+      header.appendChild(summaryText);
+      
+      // Grid for liked cats
+      if (likedCats.length > 0) {
+        const likedTitle = document.createElement('h2');
+        likedTitle.className = 'liked-title';
+        likedTitle.textContent = 'Your Liked Cats';
+        
+        const grid = document.createElement('div');
+        grid.className = 'cat-grid';
+        
+        // Add liked cats to grid
+        likedCats.forEach((cat, index) => {
+          const imgContainer = document.createElement('div');
+          imgContainer.className = 'cat-grid-item';
+          imgContainer.style.animationDelay = `${0.5 + (index * 0.05)}s`;
+          
+          const img = document.createElement('img');
+          img.src = cat.url;
+          img.alt = 'Liked cat';
+          img.loading = 'lazy';
+          
+          imgContainer.appendChild(img);
+          grid.appendChild(imgContainer);
+        });
+        
+        scrollContent.appendChild(likedTitle);
+        scrollContent.appendChild(grid);
+      } else {
+        const noLikes = document.createElement('p');
+        noLikes.className = 'no-likes';
+        noLikes.textContent = "You didn't like any cats this time. Try again!";
+        scrollContent.appendChild(noLikes);
+      }
+      
+      // Footer with action button
+      const footer = document.createElement('div');
+      footer.className = 'summary-footer';
+      
+      const button = document.createElement('button');
+      button.className = 'btn start-over-btn';
+      button.textContent = 'Start Over';
+      button.onclick = () => window.location.reload();
+      
+      footer.appendChild(button);
+      
+      // Assemble the summary
+      container.appendChild(header);
+      container.appendChild(scrollContent);
+      container.appendChild(footer);
+      
+      // Hide swipe UI that is not needed in summary
+      const controls = document.querySelector('.controls');
+      if (controls) (controls).style.display = 'none';
+      const hintEl = document.getElementById('hint');
+      if (hintEl) hintEl.style.display = 'none';
+
+      // Hide the deck and show summary
+      document.getElementById('deck').style.display = 'none';
+      document.getElementById('done').style.display = 'flex';
+      document.getElementById('done').innerHTML = '';
+      document.getElementById('done').appendChild(container);
+      
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+    
+    // Start the app
+    init();
+  </script>
+</body>
+</html>

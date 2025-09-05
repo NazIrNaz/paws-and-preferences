@@ -1,0 +1,17 @@
+{
+  "name": "paws-and-preferences",
+  "version": "1.0.0",
+  "description": "A fun cat swiping game built with TypeScript and SASS",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "sass": "^1.70.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0"
+  }
+}
